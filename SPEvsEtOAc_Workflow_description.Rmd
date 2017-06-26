@@ -1,0 +1,18 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r}
+
+#QCed TQS data is imported from in house QC script. 
+#
+#1.  Data is put through QCcleanup.Rmd to remove compounds which weren't detected at all (in less than 2/18 samples) and to replace NAs with blank values.
+#
+#2. Cleanedup data is put through BMIS.  Code was downloaded from github on June 20, 2016 and many changes were made to make the code and data compatible. Many of these modifications are noted in the comments in the script itself.
+#
+#3. Once the data are normalized, they were run throgh QC_SummaryTable.Rmd.  Here, the average response for each compound in each extraction method is ranked backwards from 6, starting with the best response.  This table is cross-referenced to one which counts the number of experiments in which a compound was collected, so that samples filled in with blank values do not get ranked.
+
+```
+

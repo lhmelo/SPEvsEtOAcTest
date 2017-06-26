@@ -1,0 +1,209 @@
+---
+title: "QCSummary"
+output: html_document
+data: June 20, 2017
+---
+
+```{r setup, message=FALSE, warning=FALSE, include=FALSE}
+knitr::opts_chunk$set(
+	message = FALSE,
+	warning = FALSE,
+	include = FALSE
+)
+library(readr)
+library(tidyverse)
+library(cowplot)
+```
+
+```{r, message=FALSE, warning=FALSE, include=FALSE}
+datapath <- "~/Desktop/MetabolomicsProjects/SPEvsEtOAcTest"
+functionpath <- "~/Desktop/MetabolomicsProjects/RScripts"
+
+setwd(datapath)
+filename <- "New_Normalized_data_QC_outputCYANO_TQS_Dissolved_SPEvsEtAc_Aq_NAsReplaced.csv"
+filename2 <- "QC_outputCYANO_TQS_Dissolved_SPEvsEtAc_Aq.csv"
+
+org.data <- read_csv(filename2, skip=1)
+
+data <- read_csv(filename)
+
+fraction <- "CyanoAq"
+#read_csv("BMIS_Normalized_QC_outputCYANO_TQS_Dissolved_SPEvsEtAc_Aq.csv")
+```
+
+```{r}
+data_new <- org.data %>%
+  separate(Replicate.Name,c("runDate","type","SampID","replicate"),"_", remove=FALSE)
+
+Unique.names <-unique(data$Compound.Name)
+
+data.stats = data.frame(matrix(vector(), 0, 5,
+                               dimnames=list(c(), c("Compound.Name", "is.NA", "NumNA", "per.NA", "ALLNA" ))),
+                        stringsAsFactors=F)
+
+Names <- colnames(data_new)
+
+temp.good = data.frame(matrix(vector(), 0, length(Names),
+                                        dimnames=list(c(), c(Names))),
+                                 stringsAsFactors=F)
+
+
+
+data_filt <- data_new %>% filter(type == "Smp")
+
+for (i in 1:length(Unique.names))
+{Compound_set <- data_filt %>% filter(Compound.Name == Unique.names[i])
+
+data.stats[i,1] <- as.character(Unique.names[i])
+
+if (anyNA(Compound_set$Area)==TRUE)
+{
+  data.stats[i,2] <-TRUE
+  data.stats[i,3] <-sum(is.na(Compound_set$Area))
+  data.stats[i,4] <-sum(is.na(Compound_set$Area))/length(Compound_set$Compound.Name)
+  {
+    if (all(is.na(Compound_set$Area))==TRUE)
+      data.stats[i,5] <-TRUE
+  }
+}
+
+else  {
+  data.stats[i,2] <-FALSE
+  
+}
+
+}
+
+#Make a list of compounds we detected
+
+data.stats_trim <- data.stats %>% filter(is.na(ALLNA))
+
+data.stats_trim["NumNA"][is.na(data.stats_trim["NumNA"])] <- 0
+
+data.stats_trim <- data.stats_trim %>% 
+  mutate(GoodReps = 18 - NumNA) %>%
+  mutate(GoodExps = round(GoodReps/3))
+
+```
+
+
+
+```{r, message=FALSE, warning=FALSE, include=FALSE}
+# data_new <- data %>%
+#   separate(Replicate.Name,c("runDate","type","SampID","replicate"),"_", remove=FALSE)
+
+data_summ <- data %>% 
+  filter(type == "Smp") %>%
+  group_by(Compound.Name, SampID) %>%
+  dplyr::summarise(mean.Area = mean(Area, na.rm=T), 
+            sd.Area = sd(Area, na.rm=T))
+```
+
+#ranked table
+
+```{r}
+
+unique.names <- unique(data_summ$Compound.Name)
+
+Names <- colnames(data_summ)
+
+
+
+data_ranked = data.frame(matrix(vector(), 0, length(Names) + 1,
+                                        dimnames=list(c(), c(Names, "rank"))),
+                                 stringsAsFactors=F)
+
+
+
+for (i in 1:length(unique.names)) {
+  
+  Good.ranks <- data.stats_trim %>% 
+    filter(Compound.Name == unique.names[i]) %>%
+    select(GoodExps)
+  
+  Good.ranks <- Good.ranks[,1]
+  
+  compound_set <- as.data.frame(data_summ) %>% 
+    filter(Compound.Name == unique.names[i]) %>%
+    arrange(desc(mean.Area)) %>%
+    mutate(rank = c(6:(7-Good.ranks),rep(0, (6-Good.ranks))))
+  
+  data_ranked <- rbind(data_ranked, compound_set)
+  
+  
+}
+
+```
+
+```{r}
+data_ranked_wide <- data_ranked %>% 
+   select(-sd.Area, -mean.Area) %>%
+  spread(key= Compound.Name, value= rank) %>%
+  mutate(rank.total = rowSums(data_ranked_wide[,2:ncol(data_ranked_wide)])) %>%
+  select(SampID, rank.total, everything()) %>%
+  arrange(desc(rank.total))
+
+data_rank_simple <- data_ranked_wide %>% select(SampID, rank.total)
+write_csv(data_rank_simple, "~/Desktop/MetabolomicsProjects/SPEvsEtOAcTest/CyanoAq/CyanoAq_ExtractionExperimentRanks.csv")
+
+
+```
+
+
+#readable table
+```{r, include=FALSE}
+data_summ_wide <- data_summ %>% 
+  select(-sd.Area) %>%
+  spread(key= SampID, value= mean.Area)
+```
+
+#plot data
+```{r, echo=FALSE}
+setwd(functionpath)
+source("FacetGraphs_SPEvsEtOAcTest.R")
+
+Compound.Names <- as.character(unique(data_summ$Compound.Name))
+length(Compound.Names)
+Compound.Names_1 <-Compound.Names[1:12]
+Compound.Names_2 <-Compound.Names[13:24]
+Compound.Names_3 <-Compound.Names[25:36]
+Compound.Names_4 <-Compound.Names[37:48]
+Compound.Names_5 <-Compound.Names[49:60]
+Compound.Names_6 <-Compound.Names[61:72]
+Compound.Names_7 <-Compound.Names[73:84]
+Compound.Names_8 <-Compound.Names[85:96]
+Compound.Names_9 <-Compound.Names[97:108]
+#
+#
+#
+data_summ_1 <- data_summ %>% filter(Compound.Name %in% Compound.Names_1)
+data_summ_2 <- data_summ %>% filter(Compound.Name %in% Compound.Names_2)
+data_summ_3 <- data_summ %>% filter(Compound.Name %in% Compound.Names_3)
+data_summ_4 <- data_summ %>% filter(Compound.Name %in% Compound.Names_4)
+data_summ_5 <- data_summ %>% filter(Compound.Name %in% Compound.Names_5)
+data_summ_6 <- data_summ %>% filter(Compound.Name %in% Compound.Names_6)
+data_summ_7 <- data_summ %>% filter(Compound.Name %in% Compound.Names_7)
+data_summ_8 <- data_summ %>% filter(Compound.Name %in% Compound.Names_8)
+data_summ_9 <- data_summ %>% filter(Compound.Name %in% Compound.Names_9)
+#
+#
+#
+#
+#
+
+a <- FacetGraphs(data_summ_1, "Cyano", "AQ")
+
+b <- FacetGraphs(data_summ_2, "Cyano", "AQ")
+c <- FacetGraphs(data_summ_3, "Cyano", "AQ")
+d <- FacetGraphs(data_summ_4, "Cyano", "AQ")
+e <- FacetGraphs(data_summ_5, "Cyano", "AQ")
+f <- FacetGraphs(data_summ_6, "Cyano", "AQ")
+g <- FacetGraphs(data_summ_7, "Cyano", "AQ")
+h <- FacetGraphs(data_summ_8, "Cyano", "AQ")
+i <- FacetGraphs(data_summ_9, "Cyano", "AQ")
+
+
+
+
+```
+

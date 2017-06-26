@@ -1,0 +1,120 @@
+---
+title: "QCcleanup"
+date: June 20, 2017
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(readr)
+library(tidyverse)
+```
+
+```{r, message=FALSE, warning=FALSE}
+datapath <- "~/Desktop/MetabolomicsProjects/SPEvsEtOAcTest"
+
+setwd(datapath)
+filename <- "QC_outputCYANO_TQS_Dissolved_SPEvsEtAc_Aq.csv"
+data <- read_csv(filename, skip = 1)
+#read_csv("BMIS_Normalized_QC_outputCYANO_TQS_Dissolved_SPEvsEtAc_Aq.csv")
+
+
+
+```
+
+```{r}
+data_new <- data %>%
+  separate(Replicate.Name,c("runDate","type","SampID","replicate"),"_", remove=FALSE)
+
+Unique.names <-unique(data$Compound.Name)
+
+Check.data = data.frame(matrix(vector(), 0, 5,
+                               dimnames=list(c(), c("Compound.Name", "is.NA", "NumNA", "per.NA", "ALLNA" ))),
+                        stringsAsFactors=F)
+
+Names <- colnames(data_new)
+
+temp.good = data.frame(matrix(vector(), 0, length(Names),
+                                        dimnames=list(c(), c(Names))),
+                                 stringsAsFactors=F)
+
+
+
+data_filt <- data_new %>% filter(type == "Smp")
+
+for (i in 1:length(Unique.names))
+{Compound_set <- data_filt %>% filter(Compound.Name == Unique.names[i])
+
+Check.data[i,1] <- as.character(Unique.names[i])
+
+if (anyNA(Compound_set$Area)==TRUE)
+{
+  Check.data[i,2] <-TRUE
+  Check.data[i,3] <-sum(is.na(Compound_set$Area))
+  Check.data[i,4] <-sum(is.na(Compound_set$Area))/length(Compound_set$Compound.Name)
+  {
+    if (all(is.na(Compound_set$Area))==TRUE)
+      Check.data[i,5] <-TRUE
+  }
+}
+
+else  {
+  Check.data[i,2] <-FALSE
+  
+}
+
+}
+
+#Make a list of compounds we detected
+
+Check.data_trim <- Check.data %>% filter(is.na(ALLNA))
+
+#OR
+#Check.data_trim <- Check.data %>% 
+# filter(per.NA < 0.5 | is.NA == "FALSE")
+# 
+data_blanks <- data_new %>% filter(type == "Blk")
+data_standards <- data_new %>% filter(type == "Std")
+data_pooled <- data_new %>% filter(type == "Poo")
+
+for (i in 1:length(Check.data_trim$Compound.Name)) {
+  
+  NA_value <- data_blanks %>% 
+    filter(Compound.Name == Check.data_trim[i,1]) %>% 
+    select(Area) 
+  
+  temp <- data_filt %>% 
+    filter(Compound.Name == Check.data_trim[i,1]) %>% 
+    replace_na(list(Area=NA_value[1,1]))
+  
+
+  
+  temp.good<- rbind(temp.good, temp)
+
+}
+
+remove_from_standards <- Check.data %>% filter(!is.na(ALLNA))
+
+data_standards <- data_standards %>% 
+  filter(!Compound.Name %in% remove_from_standards[,1])
+
+data_blanks <- data_blanks %>% 
+  filter(!Compound.Name %in% remove_from_standards[,1])
+
+data_pooled <- data_pooled %>% 
+  filter(!Compound.Name %in% remove_from_standards[,1])
+
+
+drop <- c("runDate","type","SampID","replicate")
+
+data_blankreplaced <- temp.good %>% rbind(data_blanks, data_standards, data_pooled) %>% select(-one_of(drop)) %>% mutate(Area = as.integer(Area))
+
+setwd(datapath)
+write.csv(data_blankreplaced, file = paste(filename, "_NAsReplaced", ".csv", sep = "" ), row.names = FALSE)
+#
+#data_blankreplaced <- temp.good %>% rbind(data_blanks, data_standards) %>% mutate(Area = as.integer(Area))
+```
+
+```{r}
+
+```
+

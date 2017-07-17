@@ -4,7 +4,9 @@ output: html_document
 date: July 17, 2017
 ---
 
-This project contains my most up-to-date version of the Targeted-analysis B-MIS code, written by Angie Boysen.  This version has been optomized to work with my R configuration and datasets.
+These files are relavent to an experiment to compare the efficiency of two different methods (SPE and EtOAc-shake) to extract dissolved metabolites from artificial seawater.  
+
+This repository contains my most up-to-date version of the Targeted-analysis B-MIS code, written by Angie Boysen.  This version has been optomized to work with my R configuration and datasets.
 
 B-MIS-Normalization_TQS_ProCyanoAq_NAsremoved.Rmd is the version to use as a template.
 

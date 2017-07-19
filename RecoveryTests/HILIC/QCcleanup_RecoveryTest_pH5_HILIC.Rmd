@@ -1,0 +1,226 @@
+---
+title: "QCcleanup_RecoveryTest_HILIC"
+date: June 20, 2017
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(readr)
+library(tidyverse)
+```
+
+```{r, message=FALSE, warning=FALSE}
+datapath <- "~/Desktop/MetabolomicsProjects/SPEvsEtOAcTest/RecoveryTests/HILIC"
+
+setwd(datapath)
+filename <- "QC_outputSPErecovery_pH5_PPL.csv"
+data <- read_csv(filename, skip = 1)
+#read_csv("BMIS_Normalized_QC_outputCYANO_TQS_Dissolved_SPEvsEtAc_Aq.csv")
+
+
+
+```
+
+```{r}
+setwd("~/Desktop/MetabolomicsProjects/SPEvsEtOAcTest/HILIC")
+MasterList <- read.csv("HILIC_MasterList_March2017.csv")
+
+MasterList <- MasterList %>%
+  select(Group, Compound.Name)
+
+Unique.MasterList <- unique(MasterList)
+
+```
+
+```{r}
+data_new <- data %>%
+  separate(Replicate.Name,c("runDate","type","SampID","replicate"),"_", remove=FALSE)
+
+Unique.names <-unique(data$Compound.Name)
+
+Check.data = data.frame(matrix(vector(), 0, 5,
+                               dimnames=list(c(), c("Compound.Name", "is.NA", "NumNA", "per.NA", "ALLNA" ))),
+                        stringsAsFactors=F)
+
+Names <- colnames(data_new)
+
+temp.good = data.frame(matrix(vector(), 0, length(Names),
+                                        dimnames=list(c(), c(Names))),
+                                 stringsAsFactors=F)
+
+
+
+data_filt <- data_new %>% filter(type == "Smp")
+
+for (i in 1:length(Unique.names))
+{Compound_set <- data_filt %>% filter(Compound.Name == Unique.names[i])
+
+Check.data[i,1] <- as.character(Unique.names[i])
+
+if (anyNA(Compound_set$Area)==TRUE)
+{
+  Check.data[i,2] <-TRUE
+  Check.data[i,3] <-sum(is.na(Compound_set$Area))
+  Check.data[i,4] <-sum(is.na(Compound_set$Area))/length(Compound_set$Compound.Name)
+  {
+    if (all(is.na(Compound_set$Area))==TRUE)
+      Check.data[i,5] <-TRUE
+  }
+}
+
+else  {
+  Check.data[i,2] <-FALSE
+  
+}
+
+}
+
+#Make a list of compounds we detected
+
+Check.data_trim <- Check.data %>% filter(is.na(ALLNA))
+
+#OR
+#Check.data_trim <- Check.data %>% 
+# filter(per.NA < 0.5 | is.NA == "FALSE")
+# 
+data_blanks <- data_new %>% filter(type == "Blk")
+data_standards <- data_new %>% filter(type == "Std")
+data_pooled <- data_new %>% filter(type == "Poo")
+
+for (i in 1:length(Check.data_trim$Compound.Name)) {
+  
+  NA_value <- data_blanks %>% 
+    filter(Compound.Name == Check.data_trim[i,1]) %>% 
+    select(Area) 
+  
+  temp <- data_filt %>% 
+    filter(Compound.Name == Check.data_trim[i,1]) %>% 
+    replace_na(list(Area=NA_value[1,1]))
+  
+
+  
+  temp.good<- rbind(temp.good, temp)
+
+}
+
+remove_from_standards <- Check.data %>% filter(!is.na(ALLNA))
+
+data_standards <- data_standards %>% 
+  filter(!Compound.Name %in% remove_from_standards[,1])
+
+data_blanks <- data_blanks %>% 
+  filter(!Compound.Name %in% remove_from_standards[,1])
+
+data_pooled <- data_pooled %>% 
+  filter(!Compound.Name %in% remove_from_standards[,1])
+
+
+drop <- c("runDate","type","SampID","replicate")
+
+data_blankreplaced <- temp.good %>% rbind(data_blanks, data_standards, data_pooled) %>% select(-one_of(drop)) %>% mutate(Area = as.integer(Area))
+
+setwd(datapath)
+write.csv(data_blankreplaced, file = paste(filename, "_NAsReplaced", ".csv", sep = "" ), row.names = FALSE)
+#
+#data_blankreplaced <- temp.good %>% rbind(data_blanks, data_standards) %>% mutate(Area = as.integer(Area))
+```
+
+#GO DO B-MIS!
+
+```{r}
+#Substract "no spike" avg value from treatment values
+
+#Create a data.frame of average background values seen in the nospike samples
+data_backgroundvalues <- data_blankreplaced %>%
+  filter(grepl('nospike', Replicate.Name))%>%
+  mutate(Compound.Name = as.factor(Compound.Name)) %>%
+  group_by(Compound.Name) %>%
+    summarise(mean.background = mean(Area))
+
+data_backgroundcorrected <- data_blankreplaced %>%
+   filter(!grepl('nospike', Replicate.Name))
+
+Unique.names <-unique(data_blankreplaced$Compound.Name)
+
+Names <- colnames(data_backgroundcorrected)
+
+temp.good = data.frame(matrix(vector(), 0, length(Names),
+                                        dimnames=list(c(), c(Names))),
+                                 stringsAsFactors=F)
+
+for (i in 1:length(Unique.names)) {
+  
+  data_backgroundvalue <- data_backgroundvalues %>%
+    filter(Compound.Name == Unique.names[i]) 
+  
+  data_backgroundvalue <- as.data.frame(data_backgroundvalue)
+   data_backgroundcorrected <- as.data.frame(data_backgroundcorrected)
+  
+  Compound_set <- data_backgroundcorrected %>% 
+    filter(grepl('Smp', Replicate.Name)) %>%
+    filter(!grepl("spikeafter_2", Replicate.Name)) %>%
+    filter(!grepl("spikeafter_3", Replicate.Name)) %>%
+    filter(Compound.Name == Unique.names[i]) %>%
+    mutate(area.corrected = (Area - data_backgroundvalue[1,2]))
+
+  
+  temp.good<- rbind(temp.good, Compound_set)
+
+}
+temp.good_backup <- temp.good 
+
+
+temp.good$area.corrected <- ifelse(grepl("spikebefore", temp.good$Replicate.Name) & temp.good$area.corrected < 0, 0, temp.good$area.corrected)
+
+
+
+#Calculate percent reovery in 'spikebefore' samples relative to 'spikeafter' samples
+#'spikeafter' is multiplied by 2 because it was prepared to a final 2 uM concentration, rather than 4 uM. spikebefore would be 4 uM if 100% recovery
+Recovery <- temp.good %>%
+  separate(Replicate.Name,c("runDate","type","SampID","replicate"),"_", remove=FALSE) %>%
+  group_by(Compound.Name, SampID) %>%
+  summarise(mean.area.corrected = mean(area.corrected)) %>%
+  mutate(SampID = gsub('SPEpH5-', '', SampID)) %>%
+  spread(key = SampID, value=mean.area.corrected) %>%
+  mutate(percent.recovery = (spikebefore/(spikeafter*2))*100) %>%
+  mutate(percent.recovery = round(percent.recovery)) %>%
+  arrange(desc(percent.recovery)) %>%
+  left_join(Unique.MasterList, by="Compound.Name")
+
+
+setwd(datapath)
+  write.csv(Recovery, "RecoveryTest_pH5_HILIC.csv")
+```
+
+#Plot internal standards
+
+```{r}
+internal.standards.list <- Unique.MasterList %>%
+  filter(Group == "Internal Std")
+
+internal.standards <- data_blankreplaced %>%
+  mutate(Replicate.Name = gsub('spikeafter_1', 'spikeafter-1_', Replicate.Name)) %>%
+  mutate(Replicate.Name = gsub('spikeafter_2', 'spikeafter-2_', Replicate.Name)) %>%
+  mutate(Replicate.Name = gsub('spikeafter_3', 'spikeafter-3_', Replicate.Name)) %>%
+  separate(Replicate.Name,c("runDate","type","SampID","replicate"),"_", remove=FALSE) %>%
+  mutate(SampID = gsub('SPEpH5-', '', SampID)) %>%
+  filter(grepl('Smp', Replicate.Name)) %>%
+  filter(Compound.Name %in% internal.standards.list$Compound.Name) %>%
+  group_by (Compound.Name, SampID) %>%
+  summarise(mean.Area = mean(Area), sd = sd(Area)) 
+
+
+ p <- ggplot(internal.standards, aes(y=mean.Area, x=SampID)) + 
+      geom_bar(stat="identity", fill="white", colour="black", width = 0.5, position = "dodge") +
+      geom_errorbar(aes(ymin=mean.Area-sd, ymax=mean.Area+sd), width=0.2) +
+      #labs(y="Area", x="SampID") +
+      scale_y_continuous(expand = c(0,0))+
+      theme(axis.text.x=element_text(angle=50, size=8, vjust=0.5)) +
+      facet_wrap(~Compound.Name, scales= "free", ncol=3)
+
+ 
+ print(p)
+
+```
+
+

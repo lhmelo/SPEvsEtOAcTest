@@ -29,7 +29,7 @@ library(dplyr)
 
 #Import data - set filename with QC output here!
 ```{r}
-setwd("M:/Spring_2017_metabolites/SPEvsEtAc/HILIC_Skyline")
+setwd("~/Desktop/MetabolomicsProjects/SPEvsEtOAcTest/HILIC")
 filename <- "QC_outputHILIC_Dissolved_SPEvsEtAc_NAsReplaced.csv"
 mydata.overloaded <- read_csv(filename,comment = "#")
 mydata <- mydata.overloaded[,2:9]

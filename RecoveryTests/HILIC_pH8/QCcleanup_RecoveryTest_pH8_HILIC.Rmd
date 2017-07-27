@@ -1,0 +1,438 @@
+---
+title: "QCcleanup_RecoveryTest_HILIC_SPEpH8"
+date: July 26, 2017
+output: html_document
+---
+
+#This script is used to do QC cleanup, prep data for BMIS, calculate percent recovery from normalized data and plot internal standards.  Required input is QCed Skyline TQS data and the MasterList of HILIC Internal Standards, which contains a column indicating compound type.
+
+```{r setup, include=FALSE}
+library(readr)
+library(tidyverse)
+```
+
+```{r, message=FALSE, warning=FALSE}
+datapath <- "~/Desktop/MetabolomicsProjects/SPEvsEtOAcTest/RecoveryTests/HILIC_pH8"
+functionpath <- "~/Desktop/MetabolomicsProjects/RScripts"
+setwd(datapath)
+filename <- "QC_outputHILIC_SPErecovery_pH8_pH2_PPL"
+data <- read_csv(paste(filename, "csv", sep = "."), skip = 1)
+#read_csv("BMIS_Normalized_QC_outputCYANO_TQS_Dissolved_SPEvsEtAc_Aq.csv")
+
+
+
+```
+
+#Collect pH8 data
+```{r}
+data <- data %>% filter(grepl("Poo|pH8|Std|Blk", Replicate.Name))
+```
+
+
+#Load Internal Standard List
+```{r}
+setwd("~/Desktop/MetabolomicsProjects/SPEvsEtOAcTest/RecoveryTests/HILIC_pH8")
+MasterList <- read.csv("HILIC_MasterList_March2017.csv")
+
+MasterList <- MasterList %>%
+  select(Group, Compound.Name)
+
+Unique.MasterList <- unique(MasterList)
+
+IS.list <- MasterList %>% filter(Group == "Internal Std") %>% 
+     select(`Compound.Name`) %>% 
+     unique()
+IS.list <- IS.list[[1]]
+IS.list <- as.character(IS.list)
+
+
+```
+#QC cleanup
+```{r}
+data_new <- data %>%
+  separate(Replicate.Name,c("runDate","type","SampID","replicate"),"_", remove=FALSE)
+
+#A few bad compounds made it through QC
+# data_new <- data_new %>%
+#   filter(!Compound.Name == "Phosphocholine",
+#          !Compound.Name == "Tryptophol",
+#          !Compound.Name == "7-dehydrocholesterol",
+#          !Compound.Name == "Vitamin D2",
+#          !Compound.Name == "Vitamin C",
+#          !Compound.Name == "Methylthioadenosine",
+#          !Compound.Name == "2, 4 decadienal",
+#          !Compound.Name == "DHA")
+
+Unique.names <-unique(data_new$Compound.Name)
+
+Check.data = data.frame(matrix(vector(), 0, 5,
+                               dimnames=list(c(), c("Compound.Name", "is.NA", "NumNA", "per.NA", "ALLNA" ))),
+                        stringsAsFactors=F)
+
+Names <- colnames(data_new)
+
+temp.good = data.frame(matrix(vector(), 0, length(Names),
+                                        dimnames=list(c(), c(Names))),
+                                 stringsAsFactors=F)
+
+temp.good.pooled <- temp.good
+
+data_filt <- data_new %>% filter(type == "Smp")
+
+#Check to see if any compounds are not detected in any SAMPLES
+
+for (i in 1:length(Unique.names))
+{Compound_set <- data_filt %>% filter(Compound.Name == Unique.names[i])
+
+Check.data[i,1] <- as.character(Unique.names[i])
+
+if (anyNA(Compound_set$Area)==TRUE)
+{
+  Check.data[i,2] <-TRUE
+  Check.data[i,3] <-sum(is.na(Compound_set$Area))
+  Check.data[i,4] <-sum(is.na(Compound_set$Area))/length(Compound_set$Compound.Name)
+  {
+    if (all(is.na(Compound_set$Area))==TRUE)
+      Check.data[i,5] <-TRUE
+  }
+}
+
+else  {
+  Check.data[i,2] <-FALSE
+  
+}
+
+}
+
+#Make a list of compounds we detected
+
+Check.data_trim <- Check.data %>% filter(is.na(ALLNA))
+
+#OR
+#Check.data_trim <- Check.data %>% 
+# filter(per.NA < 0.5 | is.NA == "FALSE")
+# 
+data_blanks <- data_new %>% filter(type == "Blk")
+data_standards <- data_new %>% filter(type == "Std")
+data_pooled <- data_new %>% filter(type == "Poo")
+
+#replace NAs in SAMPLES only (does not back fill pooled, standards, or blanks)
+
+for (i in 1:length(Check.data_trim$Compound.Name)) {
+  
+  NA_value <- data_blanks %>% 
+    filter(Compound.Name == Check.data_trim[i,1]) %>% 
+    select(Area) 
+  
+  temp <- data_filt %>% 
+    filter(Compound.Name == Check.data_trim[i,1]) %>% 
+    replace_na(list(Area=NA_value[1,1]))
+  
+
+  
+  temp.good<- rbind(temp.good, temp)
+
+}
+
+
+
+remove_from_standards <- Check.data %>% filter(!is.na(ALLNA))
+
+data_standards <- data_standards %>% 
+  filter(!Compound.Name %in% remove_from_standards[,1])
+
+data_blanks <- data_blanks %>% 
+  filter(!Compound.Name %in% remove_from_standards[,1])
+
+data_pooled <- data_pooled %>% 
+  filter(!Compound.Name %in% remove_from_standards[,1])
+
+#Wouldn't normally need to do this next step, but a few wierd things got through the QC and we need to backfill missing Area in a few pooled 
+# data_pooled <- data_pooled %>% 
+#     mutate(Area = ifelse(is.na(data_pooled$Area), data_pooled$rawArea, data_pooled$Area))
+
+
+
+drop <- c("runDate","type","SampID","replicate")
+
+data_blankreplaced <- temp.good %>% 
+  rbind(data_blanks, data_standards, data_pooled) %>% 
+  select(-one_of(drop)) %>% 
+  mutate(Area = as.numeric(Area))
+
+
+
+
+setwd(datapath)
+write.csv(data_blankreplaced, file = paste(filename, "_NAsReplaced", ".csv", sep = "" ), row.names = FALSE)
+#
+#data_blankreplaced <- temp.good %>% rbind(data_blanks, data_standards) %>% mutate(Area = as.integer(Area))
+```
+
+#DO B-MIS-----
+
+```{r}
+setwd(datapath)
+filename <- "QC_outputHILIC_SPErecovery_pH8_PPL"
+#load old data_blankreplaced
+data_blankreplaced <- read.csv(file = paste(filename, "_NAsReplaced", ".csv", sep = "" ), row.names=1)
+
+#load BMIS normalized data
+#
+data_normalized <- read.csv(file = paste("New_Normalized_data_", filename, "_NAsReplaced", ".csv", sep = "" ))
+```
+
+#Calculate Recovery
+
+```{r}
+#Substract "no spike" avg value from treatment values
+
+#Create a data.frame of average background values seen in the nospike samples
+data_backgroundvalues <- data_normalized %>%
+  filter(grepl('nospike', Replicate.Name))%>%
+  mutate(Compound.Name = as.factor(Compound.Name)) %>%
+  group_by(Compound.Name) %>%
+    dplyr::summarise(mean.background = mean(PooPlusModel))
+
+data_backgroundcorrected <- data_normalized %>%
+   filter(!grepl('nospike', Replicate.Name))
+
+Unique.names <-unique(data_blankreplaced$Compound.Name)
+
+Names <- colnames(data_backgroundcorrected)
+
+temp.good = data.frame(matrix(vector(), 0, length(Names),
+                                        dimnames=list(c(), c(Names))),
+                                 stringsAsFactors=F)
+
+#calculate background-corrected areas (area.corrected) by subracting nospike values (PooPlusModel) from spikebefore and spikeafter samples (PooPlusModel)
+for (i in 1:length(Unique.names)) {
+  
+  data_backgroundvalue <- data_backgroundvalues %>%
+    filter(Compound.Name == Unique.names[i]) 
+  
+  data_backgroundvalue <- as.data.frame(data_backgroundvalue)
+   data_backgroundcorrected <- as.data.frame(data_backgroundcorrected)
+  
+  Compound_set <- data_backgroundcorrected %>% 
+    filter(grepl('Smp', Replicate.Name)) %>%
+    filter(!grepl("spikeafter_2", Replicate.Name)) %>%
+    filter(!grepl("spikeafter_3", Replicate.Name)) %>%
+    filter(Compound.Name == Unique.names[i]) %>%
+    mutate(area.corrected = (PooPlusModel - data_backgroundvalue[1,2]))
+
+  
+  temp.good<- rbind(temp.good, Compound_set)
+
+}
+#temp.good_backup <- temp.good 
+
+#if area.corrected is less than zero, replace with zero
+temp.good$area.corrected <- ifelse(grepl("spikebefore", temp.good$Replicate.Name) & temp.good$area.corrected < 0, 0, temp.good$area.corrected)
+
+
+
+#Calculate percent reovery in 'spikebefore' samples relative to 'spikeafter' samples
+#'spikeafter' is multiplied by 2 because it was prepared to a final 2 uM concentration, rather than 4 uM. spikebefore would be 4 uM if 100% recovery
+Recovery <- temp.good %>%
+  #separate(Replicate.Name,c("runDate","type","SampID","replicate"),"_", remove=FALSE) %>%
+  group_by(Compound.Name, SampID) %>%
+  dplyr::summarise(mean.area.corrected = mean(area.corrected)) %>%
+  mutate(SampID = gsub('SPEpH8-', '', SampID)) %>%
+  spread(key = SampID, value=mean.area.corrected) %>%
+  mutate(percent.recovery = (spikebefore/(spikeafter1*2))*100) %>%
+  mutate(percent.recovery = round(percent.recovery)) %>%
+  arrange(desc(percent.recovery)) %>%
+  left_join(Unique.MasterList, by="Compound.Name")
+
+Recovery_trim <- Recovery %>%
+  select(Compound.Name, percent.recovery)
+
+
+setwd(datapath)
+  write.csv(Recovery, "RecoveryValues_postBMIS_pH8_HILIC.csv")
+```
+
+#Plot internal standards
+
+```{r}
+internal.standards.list <- Unique.MasterList %>%
+  filter(Group == "Internal Std")
+
+internal.standards <- data_normalized %>%
+  # mutate(Replicate.Name = gsub('spikeafter_1', 'spikeafter-1_', Replicate.Name)) %>%
+  # mutate(Replicate.Name = gsub('spikeafter_2', 'spikeafter-2_', Replicate.Name)) %>%
+  # mutate(Replicate.Name = gsub('spikeafter_3', 'spikeafter-3_', Replicate.Name)) %>%
+  # separate(Replicate.Name,c("runDate","type","SampID","replicate"),"_", remove=FALSE) %>%
+  #mutate(SampID = gsub('SPEpH5-', '', SampID)) %>%
+  filter(grepl('Smp', Replicate.Name)) %>%
+  filter(Compound.Name %in% internal.standards.list$Compound.Name) %>%
+  group_by (Compound.Name, SampID) %>%
+  summarise(mean.Area = mean(PooPlusModel), sd = sd(PooPlusModel)) 
+
+
+ p <- ggplot(internal.standards, aes(y=mean.Area, x=SampID)) + 
+      geom_bar(stat="identity", fill="white", colour="black", width = 0.5, position = "dodge") +
+      geom_errorbar(aes(ymin=mean.Area-sd, ymax=mean.Area+sd), width=0.2) +
+      #labs(y="Area", x="SampID") +
+      scale_y_continuous(expand = c(0,0))+
+      theme(axis.text.x=element_text(angle=50, size=8, vjust=0.5)) +
+      facet_wrap(~Compound.Name, scales= "free", ncol=3)
+
+ 
+ print(p)
+
+```
+#Which compounds are present in background seawawater?
+
+```{r}
+data_nospike <- data %>%
+  filter(grepl("nospike", Replicate.Name)) %>%
+  filter(!Compound.Name %in% IS.list)
+
+Unique.names <-unique(data_nospike$Compound.Name)
+
+Check.data = data.frame(matrix(vector(), 0, 2,
+                               dimnames=list(c(), c("Compound.Name", "NumNA"))),
+                        stringsAsFactors=F)
+
+
+for (i in 1:length(Unique.names))
+{Compound_set <- data_nospike %>% filter(Compound.Name == Unique.names[i])
+
+Check.data[i,1] <- as.character(Unique.names[i])
+
+Check.data[i,2] <-sum(is.na(Compound_set$Area))
+}
+
+keep <- Check.data %>%
+  filter(NumNA < 2)
+
+data_nospike <- data_nospike %>%
+  filter(Compound.Name %in% keep$Compound.Name)
+
+```
+
+
+#Build calibration curve for compounds present in seawater background
+```{r}
+data_calibration <- data_normalized %>%
+  filter(grepl("spikeafter", Replicate.Name)) %>%
+  filter(Compound.Name %in% keep$Compound.Name) %>%
+  select(Replicate.Name, Compound.Name, PooPlusModel.IS, PooPlusModel) %>%
+  mutate(concentration = ifelse(grepl("spikeafter1", Replicate.Name), "2",
+                          ifelse(grepl("spikeafter2", Replicate.Name), "1",
+                           ifelse(grepl("spikeafter3", Replicate.Name), "0.5",""))))%>%
+  select(-Replicate.Name) %>%
+  group_by(Compound.Name, concentration) %>%
+  dplyr::summarise(mean.PooPlusModel = mean(PooPlusModel)) %>%
+  spread(key=concentration, value=mean.PooPlusModel) %>%
+  mutate(intercept = NA) %>%
+  mutate(slope = NA) %>%
+  mutate(r.squared = NA) %>% 
+  mutate(slope_0 = NA) %>%
+  mutate(r.squared_0 = NA)
+
+unique.compounds <- as.character(unique(data_calibration$Compound.Name))
+
+data_calibration2 <- data_normalized %>%
+  filter(grepl("spikeafter", Replicate.Name)) %>%
+  filter(Compound.Name %in% keep$Compound.Name) %>%
+  select(Replicate.Name, Compound.Name, PooPlusModel.IS, PooPlusModel) %>%
+  mutate(concentration = ifelse(grepl("spikeafter1", Replicate.Name), "2",
+                          ifelse(grepl("spikeafter2", Replicate.Name), "1",
+                           ifelse(grepl("spikeafter3", Replicate.Name), "0.5",""))))%>%
+  mutate(concentration = as.numeric(concentration))
+
+for (i in 1:length(unique.compounds)) {
+  
+  Compound_set <- data_calibration2 %>% filter(Compound.Name == unique.compounds[i])
+  
+  y <- Compound_set$PooPlusModel
+  x <- Compound_set$concentration
+  
+  model <- lm(y ~ x, Compound_set)
+  model_0 <- lm(y ~ x -1, Compound_set)
+  
+  data_calibration[data_calibration$Compound.Name == unique.compounds[i], "slope"] <- model$coefficients[2]
+  
+   data_calibration[data_calibration$Compound.Name == unique.compounds[i], "intercept"] <- model$coefficients[1]
+   
+   data_calibration[data_calibration$Compound.Name == unique.compounds[i], "r.squared"] <- summary(model)$r.squared
+   
+   data_calibration[data_calibration$Compound.Name == unique.compounds[i], "r.squared_0"] <- summary(model_0)$r.squared
+  
+   data_calibration[data_calibration$Compound.Name == unique.compounds[i], "slope_0"] <- model_0$coefficients[1]
+  
+}
+
+data_calibration_trim <- data_calibration %>%
+  select(Compound.Name, intercept, slope, r.squared, slope_0, r.squared_0)
+```
+
+#plot calibration curves
+
+```{r}
+setwd(functionpath)
+source("FacetGraphs_RecoveryTest.R")
+
+Compound.Names <- as.character(unique(data_calibration2$Compound.Name))
+length(Compound.Names)
+Compound.Names_1 <-Compound.Names[1:12]
+Compound.Names_2 <-Compound.Names[13:24]
+#Compound.Names_3 <-Compound.Names[25:36]
+
+data_calibration2_1 <- data_calibration2 %>% filter(Compound.Name %in% Compound.Names_1)
+data_calibration2_2 <- data_calibration2 %>% filter(Compound.Name %in% Compound.Names_2)
+#data_calibration2_3 <- data_calibration2 %>% filter(Compound.Name %in% Compound.Names_3)
+
+a <- FacetGraphs(data_calibration2_1)
+
+b <- FacetGraphs(data_calibration2_2)
+#c <- FacetGraphs(data_calibration2_3)
+
+```
+
+
+
+#Calculate concentrations present in background seawater
+
+```{r}
+low.concentration <- data_calibration %>%
+  select(Compound.Name, `0.5`)
+
+blank.value <- data_normalized %>%
+  filter(grepl("Blk", Replicate.Name)) %>% 
+  select(Compound.Name, PooPlusModel) %>% 
+  dplyr::rename(Blank.Area = PooPlusModel)
+  
+
+data_nospike_conc <- data_normalized %>%
+  filter(Compound.Name %in% keep$Compound.Name) %>%
+  filter(grepl("nospike", Replicate.Name)) %>% 
+  select(Replicate.Name, Compound.Name, PooPlusModel.IS, PooPlusModel) %>% 
+  left_join(data_calibration_trim, "Compound.Name") %>%
+  left_join(Recovery_trim, "Compound.Name") %>%
+  mutate(raw.concentration = (PooPlusModel - intercept)/slope)%>%
+   mutate(raw.concentration_0 = PooPlusModel/slope_0)%>%
+  mutate(adjusted.concentration = raw.concentration_0/(percent.recovery/100)) %>%
+  mutate(raw.concentration = as.numeric(format(raw.concentration, digits = 2, scientific=FALSE))) %>% 
+  mutate(raw.concentration_0 = as.numeric(format(raw.concentration_0, digits = 2, scientific=FALSE))) %>% 
+   left_join(Unique.MasterList, by="Compound.Name") %>% 
+  left_join(low.concentration, by="Compound.Name") %>% 
+  left_join(blank.value, by="Compound.Name") %>% 
+  mutate(PooPlusModel =format(PooPlusModel, digits = 2, scientific =TRUE)) %>% 
+  mutate(`0.5` =format(`0.5`, digits = 2, scientific =TRUE)) %>% 
+  mutate(Blank.Area =format(Blank.Area, digits = 2, scientific =TRUE)) %>% 
+  select(Replicate.Name, Compound.Name, percent.recovery, raw.concentration_0, adjusted.concentration, r.squared_0, Group, PooPlusModel, `0.5`, Blank.Area, raw.concentration, r.squared, everything())
+
+setwd(datapath)
+write_csv(data_nospike_conc, "BackgroundConcentrations_SPE_pH8_HILIC.csv")
+#build an adjusted.concentration
+#If no spike mean(raw area) is not twice background (or other multiplier), discard
+#If percent.recovery is less than 10, remove compound
+#If raw.concentration is negative, replace with zero
+#  mutate(adjusted.concentration = raw.concentration/(percent.recovery/100))
+```
+
+

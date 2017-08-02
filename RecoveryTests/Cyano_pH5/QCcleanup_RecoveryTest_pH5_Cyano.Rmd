@@ -1,6 +1,6 @@
 ---
-title: "QCcleanup_RecoveryTest_Cyano_SPEpH5"
-date: July 25, 2017
+title: "QCcleanup_RecoveryTest_Cyano_pH5"
+date: July 26, 2017
 output: html_document
 ---
 
@@ -13,7 +13,7 @@ library(tidyverse)
 
 ```{r, message=FALSE, warning=FALSE}
 datapath <- "~/Desktop/MetabolomicsProjects/SPEvsEtOAcTest/RecoveryTests/Cyano_pH5"
-
+functionpath <- "~/Desktop/MetabolomicsProjects/RScripts"
 setwd(datapath)
 filename <- "QC_outputCyano_SPErecovery_pH5_PPL"
 data <- read_csv(paste(filename, "csv", sep = "."), skip = 1)
@@ -22,6 +22,12 @@ data <- read_csv(paste(filename, "csv", sep = "."), skip = 1)
 
 
 ```
+
+#Collect pH8 data
+```{r}
+#data <- data %>% filter(grepl("Poo|pH8|Std|Blk", Replicate.Name))
+```
+
 
 #Load Internal Standard List
 ```{r}
@@ -47,7 +53,7 @@ data_new <- data %>%
   separate(Replicate.Name,c("runDate","type","SampID","replicate"),"_", remove=FALSE)
 
 #A few bad compounds made it through QC
-data_new <- data_new %>%
+ data_new <- data_new %>%
   filter(!Compound.Name == "Phosphocholine",
          !Compound.Name == "Tryptophol",
          !Compound.Name == "7-dehydrocholesterol",
@@ -141,8 +147,8 @@ data_blanks <- data_blanks %>%
 data_pooled <- data_pooled %>% 
   filter(!Compound.Name %in% remove_from_standards[,1])
 
-#Wouldn't normally need to do this next step, but a few wierd things got through the QC and we need to backfill missing Area in a few pooled 
-data_pooled <- data_pooled %>% 
+#Wouldn't normally need to do this next step, but a few wierd things got through the QC and we need to backfill missing Area in a few pooled
+data_pooled <- data_pooled %>%
     mutate(Area = ifelse(is.na(data_pooled$Area), data_pooled$rawArea, data_pooled$Area))
 
 
@@ -152,7 +158,7 @@ drop <- c("runDate","type","SampID","replicate")
 data_blankreplaced <- temp.good %>% 
   rbind(data_blanks, data_standards, data_pooled) %>% 
   select(-one_of(drop)) %>% 
-  mutate(Area = as.integer(Area))
+  mutate(Area = as.numeric(Area))
 
 
 
@@ -167,12 +173,42 @@ write.csv(data_blankreplaced, file = paste(filename, "_NAsReplaced", ".csv", sep
 
 ```{r}
 setwd(datapath)
+filename <- "QC_outputCyano_SPErecovery_pH5_PPL"
 #load old data_blankreplaced
 data_blankreplaced <- read.csv(file = paste(filename, "_NAsReplaced", ".csv", sep = "" ), row.names=1)
 
 #load BMIS normalized data
 #
 data_normalized <- read.csv(file = paste("New_Normalized_data_", filename, "_NAsReplaced", ".csv", sep = "" ))
+```
+
+#Plot selected compounds
+```{r}
+# data_norm_subset <- data_normalized %>% 
+#   filter(Compound.Name == "GA3" |
+#            Compound.Name == "2iP" |
+#            Compound.Name == "Hydroxo B12"|
+#            Compound.Name == "Cyano B12" |
+#            Compound.Name =="GA4" |
+#            Compound.Name == "Sulfurol" |
+#            Compound.Name == "Acetovanillone") %>% 
+#   filter(!grepl("Std", Replicate.Name))
+# 
+# p <- ggplot(data_norm_subset, aes(x=Replicate.Name, y=PooPlusModel)) + geom_bar(stat="identity") + facet_wrap( ~Compound.Name, scales="free_y")+theme(axis.text.x = element_text(angle = 90, hjust = 1,vjust = 0.5), legend.position = "top")  + ggtitle("Select Compounds Normalized Areas Cyano pH8")
+# 
+# q <- ggplot(data_norm_subset, aes(x=Replicate.Name, y=Area)) + geom_bar(stat="identity") + facet_wrap( ~Compound.Name, scales="free_y")+theme(axis.text.x = element_text(angle = 90, hjust = 1,vjust = 0.5), legend.position = "top")  + ggtitle("Select Compounds Raw Areas Cyano pH8")
+
+```
+
+#Plot a single compound normalized to all IS
+```{r}
+data_4hydroxybenz_allNormers <- data_normalized %>% 
+  filter(Compound.Name == "4-hydroxybenzaldehyde") %>% 
+  filter(!grepl("Std|Blk", Replicate.Name)) %>%
+  select(Replicate.Name, Area, inj.vol.Norm.Area, d4.Tryptamine.Norm.Area, d.IAA.Norm.Area, D.Phenylalanine.Norm.Area, D.Tryptophan.Norm.Area, Vitamin.B1_IS.Norm.Area, Vitamin.B2_IS.Norm.Area, D8.Arachidonic.Acid.Norm.Area, D5.EPA.Norm.Area, D5.DHA.Norm.Area, D6.Tocopherol.Norm.Area, D3.Pyridoxal.Norm.Area) %>% 
+  gather(Area, inj.vol.Norm.Area, d4.Tryptamine.Norm.Area, d.IAA.Norm.Area, D.Phenylalanine.Norm.Area, D.Tryptophan.Norm.Area, Vitamin.B1_IS.Norm.Area, Vitamin.B2_IS.Norm.Area, D8.Arachidonic.Acid.Norm.Area, D5.EPA.Norm.Area, D5.DHA.Norm.Area, D6.Tocopherol.Norm.Area, D3.Pyridoxal.Norm.Area, key = "Normer", value = "Area")
+
+s <- ggplot(data_4hydroxybenz_allNormers, aes(x=Replicate.Name, y=Area)) + geom_bar(stat="identity") + facet_wrap( ~Normer, scales="free_y")+theme(axis.text.x = element_text(angle = 90, hjust = 1,vjust = 0.5), legend.position = "top")  + ggtitle("All IS Normalizations for 4-hydroxybenzaldehyde, wo blank, Cyano pH5")
 ```
 
 #Calculate Recovery
@@ -185,7 +221,7 @@ data_backgroundvalues <- data_normalized %>%
   filter(grepl('nospike', Replicate.Name))%>%
   mutate(Compound.Name = as.factor(Compound.Name)) %>%
   group_by(Compound.Name) %>%
-    summarise(mean.background = mean(PooPlusModel))
+    dplyr::summarise(mean.background = mean(PooPlusModel))
 
 data_backgroundcorrected <- data_normalized %>%
    filter(!grepl('nospike', Replicate.Name))
@@ -198,6 +234,7 @@ temp.good = data.frame(matrix(vector(), 0, length(Names),
                                         dimnames=list(c(), c(Names))),
                                  stringsAsFactors=F)
 
+#calculate background-corrected areas (area.corrected) by subracting nospike values (PooPlusModel) from spikebefore and spikeafter samples (PooPlusModel)
 for (i in 1:length(Unique.names)) {
   
   data_backgroundvalue <- data_backgroundvalues %>%
@@ -217,9 +254,9 @@ for (i in 1:length(Unique.names)) {
   temp.good<- rbind(temp.good, Compound_set)
 
 }
-temp.good_backup <- temp.good 
+#temp.good_backup <- temp.good 
 
-
+#if area.corrected is less than zero, replace with zero
 temp.good$area.corrected <- ifelse(grepl("spikebefore", temp.good$Replicate.Name) & temp.good$area.corrected < 0, 0, temp.good$area.corrected)
 
 
@@ -229,7 +266,7 @@ temp.good$area.corrected <- ifelse(grepl("spikebefore", temp.good$Replicate.Name
 Recovery <- temp.good %>%
   #separate(Replicate.Name,c("runDate","type","SampID","replicate"),"_", remove=FALSE) %>%
   group_by(Compound.Name, SampID) %>%
-  summarise(mean.area.corrected = mean(area.corrected)) %>%
+  dplyr::summarise(mean.area.corrected = mean(area.corrected)) %>%
   mutate(SampID = gsub('SPEpH5-', '', SampID)) %>%
   spread(key = SampID, value=mean.area.corrected) %>%
   mutate(percent.recovery = (spikebefore/(spikeafter1*2))*100) %>%
@@ -242,8 +279,79 @@ Recovery_trim <- Recovery %>%
 
 
 setwd(datapath)
-  write.csv(Recovery, "RecoveryValues_postBMIS_pH5_HILIC.csv")
+  write.csv(Recovery, "RecoveryValues_postBMIS_pH5_Cyano.csv")
 ```
+#Calculate recoveries based on raw peak areas
+
+```{r}
+#Substract "no spike" avg value from treatment values
+
+#Create a data.frame of average background values seen in the nospike samples
+data_backgroundvalues_raw <- data_normalized %>%
+  filter(grepl('nospike', Replicate.Name))%>%
+  mutate(Compound.Name = as.factor(Compound.Name)) %>%
+  group_by(Compound.Name) %>%
+    dplyr::summarise(mean.background = mean(Area))
+
+data_backgroundcorrected_raw <- data_normalized %>%
+   filter(!grepl('nospike', Replicate.Name))
+
+Unique.names <-unique(data_blankreplaced$Compound.Name)
+
+Names <- colnames(data_backgroundcorrected_raw)
+
+temp.good = data.frame(matrix(vector(), 0, length(Names),
+                                        dimnames=list(c(), c(Names))),
+                                 stringsAsFactors=F)
+
+#calculate background-corrected areas (area.corrected) by subracting nospike values (PooPlusModel) from spikebefore and spikeafter samples (PooPlusModel)
+for (i in 1:length(Unique.names)) {
+  
+  data_backgroundvalue <- data_backgroundvalues_raw %>%
+    filter(Compound.Name == Unique.names[i]) 
+  
+  data_backgroundvalue <- as.data.frame(data_backgroundvalue)
+   data_backgroundcorrected_raw <- as.data.frame(data_backgroundcorrected_raw)
+  
+  Compound_set <- data_backgroundcorrected_raw %>% 
+    filter(grepl('Smp', Replicate.Name)) %>%
+    filter(!grepl("spikeafter_2", Replicate.Name)) %>%
+    filter(!grepl("spikeafter_3", Replicate.Name)) %>%
+    filter(Compound.Name == Unique.names[i]) %>%
+    mutate(area.corrected = (Area - data_backgroundvalue[1,2]))
+
+  
+  temp.good<- rbind(temp.good, Compound_set)
+
+}
+#temp.good_backup <- temp.good 
+
+#if area.corrected is less than zero, replace with zero
+temp.good$area.corrected <- ifelse(grepl("spikebefore", temp.good$Replicate.Name) & temp.good$area.corrected < 0, 0, temp.good$area.corrected)
+
+
+
+#Calculate percent reovery in 'spikebefore' samples relative to 'spikeafter' samples
+#'spikeafter' is multiplied by 2 because it was prepared to a final 2 uM concentration, rather than 4 uM. spikebefore would be 4 uM if 100% recovery
+Recovery_raw <- temp.good %>%
+  #separate(Replicate.Name,c("runDate","type","SampID","replicate"),"_", remove=FALSE) %>%
+  group_by(Compound.Name, SampID) %>%
+  dplyr::summarise(mean.area.corrected = mean(area.corrected)) %>%
+  mutate(SampID = gsub('SPEpH5-', '', SampID)) %>%
+  spread(key = SampID, value=mean.area.corrected) %>%
+  mutate(percent.recovery = (spikebefore/(spikeafter1*2))*100) %>%
+  mutate(percent.recovery = round(percent.recovery)) %>%
+  arrange(desc(percent.recovery)) %>%
+  left_join(Unique.MasterList, by="Compound.Name")
+
+Recovery_raw_trim <- Recovery_raw %>%
+  select(Compound.Name, percent.recovery)
+
+
+setwd(datapath)
+  write.csv(Recovery_raw, "RecoveryValues_rawareas_pH5_Cyano.csv")
+```
+
 
 #Plot internal standards
 
@@ -317,11 +425,13 @@ data_calibration <- data_normalized %>%
                            ifelse(grepl("spikeafter3", Replicate.Name), "0.5",""))))%>%
   select(-Replicate.Name) %>%
   group_by(Compound.Name, concentration) %>%
-  summarise(mean.PooPlusModel = mean(PooPlusModel)) %>%
+  dplyr::summarise(mean.PooPlusModel = mean(PooPlusModel)) %>%
   spread(key=concentration, value=mean.PooPlusModel) %>%
   mutate(intercept = NA) %>%
   mutate(slope = NA) %>%
-  mutate(r.squared = NA)
+  mutate(r.squared = NA) %>% 
+  mutate(slope_0 = NA) %>%
+  mutate(r.squared_0 = NA)
 
 unique.compounds <- as.character(unique(data_calibration$Compound.Name))
 
@@ -342,22 +452,61 @@ for (i in 1:length(unique.compounds)) {
   x <- Compound_set$concentration
   
   model <- lm(y ~ x, Compound_set)
+  model_0 <- lm(y ~ x -1, Compound_set)
   
   data_calibration[data_calibration$Compound.Name == unique.compounds[i], "slope"] <- model$coefficients[2]
   
    data_calibration[data_calibration$Compound.Name == unique.compounds[i], "intercept"] <- model$coefficients[1]
    
    data_calibration[data_calibration$Compound.Name == unique.compounds[i], "r.squared"] <- summary(model)$r.squared
+   
+   data_calibration[data_calibration$Compound.Name == unique.compounds[i], "r.squared_0"] <- summary(model_0)$r.squared
+  
+   data_calibration[data_calibration$Compound.Name == unique.compounds[i], "slope_0"] <- model_0$coefficients[1]
   
 }
 
 data_calibration_trim <- data_calibration %>%
-  select(Compound.Name, intercept, slope, r.squared)
+  select(Compound.Name, intercept, slope, r.squared, slope_0, r.squared_0)
 ```
+
+#plot calibration curves
+
+```{r}
+setwd(functionpath)
+source("FacetGraphs_RecoveryTest.R")
+
+Compound.Names <- as.character(unique(data_calibration2$Compound.Name))
+length(Compound.Names)
+Compound.Names_1 <-Compound.Names[1:12]
+Compound.Names_2 <-Compound.Names[13:24]
+#Compound.Names_3 <-Compound.Names[25:36]
+
+data_calibration2_1 <- data_calibration2 %>% filter(Compound.Name %in% Compound.Names_1)
+data_calibration2_2 <- data_calibration2 %>% filter(Compound.Name %in% Compound.Names_2)
+#data_calibration2_3 <- data_calibration2 %>% filter(Compound.Name %in% Compound.Names_3)
+
+a <- FacetGraphs(data_calibration2_1)
+
+b <- FacetGraphs(data_calibration2_2)
+#c <- FacetGraphs(data_calibration2_3)
+
+```
+
+
 
 #Calculate concentrations present in background seawater
 
 ```{r}
+low.concentration <- data_calibration %>%
+  select(Compound.Name, `0.5`)
+
+blank.value <- data_normalized %>%
+  filter(grepl("Blk", Replicate.Name)) %>% 
+  select(Compound.Name, PooPlusModel) %>% 
+  dplyr::rename(Blank.Area = PooPlusModel)
+  
+
 data_nospike_conc <- data_normalized %>%
   filter(Compound.Name %in% keep$Compound.Name) %>%
   filter(grepl("nospike", Replicate.Name)) %>% 
@@ -365,11 +514,28 @@ data_nospike_conc <- data_normalized %>%
   left_join(data_calibration_trim, "Compound.Name") %>%
   left_join(Recovery_trim, "Compound.Name") %>%
   mutate(raw.concentration = (PooPlusModel - intercept)/slope)%>%
-  mutate(raw.concentration = as.numeric(format(raw.concentration, digits = 2, scientific=FALSE))) 
+   mutate(raw.concentration_0 = PooPlusModel/slope_0)%>%
+  mutate(adjusted.concentration = raw.concentration_0/(percent.recovery/100)) %>%
+  mutate(raw.concentration = as.numeric(format(raw.concentration, digits = 2, scientific=FALSE))) %>% 
+  mutate(raw.concentration_0 = as.numeric(format(raw.concentration_0, digits = 2, scientific=FALSE))) %>% 
+   left_join(Unique.MasterList, by="Compound.Name") %>% 
+  left_join(low.concentration, by="Compound.Name") %>% 
+  left_join(blank.value, by="Compound.Name") %>% 
+  mutate(PooPlusModel =format(PooPlusModel, digits = 2, scientific =TRUE)) %>% 
+  mutate(`0.5` =format(`0.5`, digits = 2, scientific =TRUE)) %>% 
+  mutate(Blank.Area =format(Blank.Area, digits = 2, scientific =TRUE)) %>% 
+  select(Replicate.Name, Compound.Name, percent.recovery, raw.concentration_0, adjusted.concentration, r.squared_0, Group, PooPlusModel, `0.5`, Blank.Area, raw.concentration, r.squared, everything()) %>% 
+  filter(percent.recovery > 9) %>% 
+  group_by(Compound.Name, percent.recovery) %>% 
+  dplyr::summarise(average.adj.conc = mean(adjusted.concentration), 
+                   sd.adj.conc = sd(adjusted.concentration),
+                   average.raw.conc = mean(raw.concentration_0),
+                   sd.raw.conc = sd(raw.concentration_0)) 
 
 setwd(datapath)
-write_csv(data_nospike_conc, "BackgroundConcentrations_SPE_pH5_HILIC.csv")
+write_csv(data_nospike_conc, "BackgroundConcentrations_SPE_pH5_Cyano.csv")
 #build an adjusted.concentration
+#If no spike mean(raw area) is not twice background (or other multiplier), discard
 #If percent.recovery is less than 10, remove compound
 #If raw.concentration is negative, replace with zero
 #  mutate(adjusted.concentration = raw.concentration/(percent.recovery/100))

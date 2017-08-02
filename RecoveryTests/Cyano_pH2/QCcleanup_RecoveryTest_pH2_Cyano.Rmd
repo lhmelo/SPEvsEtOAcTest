@@ -253,6 +253,78 @@ setwd(datapath)
   write.csv(Recovery, "RecoveryValues_postBMIS_pH2_Cyano.csv")
 ```
 
+
+#Calculate recoveries based on raw peak areas
+
+```{r}
+#Substract "no spike" avg value from treatment values
+
+#Create a data.frame of average background values seen in the nospike samples
+data_backgroundvalues_raw <- data_normalized %>%
+  filter(grepl('nospike', Replicate.Name))%>%
+  mutate(Compound.Name = as.factor(Compound.Name)) %>%
+  group_by(Compound.Name) %>%
+    dplyr::summarise(mean.background = mean(Area))
+
+data_backgroundcorrected_raw <- data_normalized %>%
+   filter(!grepl('nospike', Replicate.Name))
+
+Unique.names <-unique(data_blankreplaced$Compound.Name)
+
+Names <- colnames(data_backgroundcorrected_raw)
+
+temp.good = data.frame(matrix(vector(), 0, length(Names),
+                                        dimnames=list(c(), c(Names))),
+                                 stringsAsFactors=F)
+
+#calculate background-corrected areas (area.corrected) by subracting nospike values (PooPlusModel) from spikebefore and spikeafter samples (PooPlusModel)
+for (i in 1:length(Unique.names)) {
+  
+  data_backgroundvalue <- data_backgroundvalues_raw %>%
+    filter(Compound.Name == Unique.names[i]) 
+  
+  data_backgroundvalue <- as.data.frame(data_backgroundvalue)
+   data_backgroundcorrected_raw <- as.data.frame(data_backgroundcorrected_raw)
+  
+  Compound_set <- data_backgroundcorrected_raw %>% 
+    filter(grepl('Smp', Replicate.Name)) %>%
+    filter(!grepl("spikeafter_2", Replicate.Name)) %>%
+    filter(!grepl("spikeafter_3", Replicate.Name)) %>%
+    filter(Compound.Name == Unique.names[i]) %>%
+    mutate(area.corrected = (Area - data_backgroundvalue[1,2]))
+
+  
+  temp.good<- rbind(temp.good, Compound_set)
+
+}
+#temp.good_backup <- temp.good 
+
+#if area.corrected is less than zero, replace with zero
+temp.good$area.corrected <- ifelse(grepl("spikebefore", temp.good$Replicate.Name) & temp.good$area.corrected < 0, 0, temp.good$area.corrected)
+
+
+
+#Calculate percent reovery in 'spikebefore' samples relative to 'spikeafter' samples
+#'spikeafter' is multiplied by 2 because it was prepared to a final 2 uM concentration, rather than 4 uM. spikebefore would be 4 uM if 100% recovery
+Recovery_raw <- temp.good %>%
+  #separate(Replicate.Name,c("runDate","type","SampID","replicate"),"_", remove=FALSE) %>%
+  group_by(Compound.Name, SampID) %>%
+  dplyr::summarise(mean.area.corrected = mean(area.corrected)) %>%
+  mutate(SampID = gsub('SPEpH2-', '', SampID)) %>%
+  spread(key = SampID, value=mean.area.corrected) %>%
+  mutate(percent.recovery = (spikebefore/(spikeafter1*2))*100) %>%
+  mutate(percent.recovery = round(percent.recovery)) %>%
+  arrange(desc(percent.recovery)) %>%
+  left_join(Unique.MasterList, by="Compound.Name")
+
+Recovery_raw_trim <- Recovery_raw %>%
+  select(Compound.Name, percent.recovery)
+
+
+setwd(datapath)
+  write.csv(Recovery_raw, "RecoveryValues_rawareas_pH2_Cyano.csv")
+```
+
 #Plot internal standards
 
 ```{r}

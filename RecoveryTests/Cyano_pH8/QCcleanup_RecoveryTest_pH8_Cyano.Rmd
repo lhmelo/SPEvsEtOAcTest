@@ -182,6 +182,35 @@ data_blankreplaced <- read.csv(file = paste(filename, "_NAsReplaced", ".csv", se
 data_normalized <- read.csv(file = paste("New_Normalized_data_", filename, "_NAsReplaced", ".csv", sep = "" ))
 ```
 
+#Plot selected compounds
+```{r}
+data_norm_subset <- data_normalized %>% 
+  filter(Compound.Name == "GA3" |
+           Compound.Name == "2iP" |
+           Compound.Name == "Hydroxo B12"|
+           Compound.Name == "Cyano B12" |
+           Compound.Name =="GA4" |
+           Compound.Name == "Sulfurol" |
+           Compound.Name == "Acetovanillone") %>% 
+  filter(!grepl("Std", Replicate.Name))
+
+p <- ggplot(data_norm_subset, aes(x=Replicate.Name, y=PooPlusModel)) + geom_bar(stat="identity") + facet_wrap( ~Compound.Name, scales="free_y")+theme(axis.text.x = element_text(angle = 90, hjust = 1,vjust = 0.5), legend.position = "top")  + ggtitle("Select Compounds Normalized Areas Cyano pH8")
+
+q <- ggplot(data_norm_subset, aes(x=Replicate.Name, y=Area)) + geom_bar(stat="identity") + facet_wrap( ~Compound.Name, scales="free_y")+theme(axis.text.x = element_text(angle = 90, hjust = 1,vjust = 0.5), legend.position = "top")  + ggtitle("Select Compounds Raw Areas Cyano pH8")
+
+```
+
+```{r}
+data_GA3_allNormers <- data_normalized %>% 
+  filter(Compound.Name == "GA3") %>% 
+  filter(!grepl("Std", Replicate.Name)) %>%
+  select(Replicate.Name, Area, inj.vol.Norm.Area, d4.Tryptamine.Norm.Area, d.IAA.Norm.Area, D.Phenylalanine.Norm.Area, D.Tryptophan.Norm.Area, Vitamin.B1_IS.Norm.Area, Vitamin.B2_IS.Norm.Area, D8.Arachidonic.Acid.Norm.Area, D5.EPA.Norm.Area, D5.DHA.Norm.Area, D6.Tocopherol.Norm.Area, D3.Pyridoxal.Norm.Area) %>% 
+  gather(Area, inj.vol.Norm.Area, d4.Tryptamine.Norm.Area, d.IAA.Norm.Area, D.Phenylalanine.Norm.Area, D.Tryptophan.Norm.Area, Vitamin.B1_IS.Norm.Area, Vitamin.B2_IS.Norm.Area, D8.Arachidonic.Acid.Norm.Area, D5.EPA.Norm.Area, D5.DHA.Norm.Area, D6.Tocopherol.Norm.Area, D3.Pyridoxal.Norm.Area, key = "Normer", value = "Area")
+
+r <- ggplot(data_GA3_allNormers, aes(x=Replicate.Name, y=Area)) + geom_bar(stat="identity") + facet_wrap( ~Normer, scales="free_y")+theme(axis.text.x = element_text(angle = 90, hjust = 1,vjust = 0.5), legend.position = "top")  + ggtitle("All IS Normalizations for GA3, Cyano pH8")
+```
+
+
 #Calculate Recovery
 
 ```{r}
@@ -250,7 +279,7 @@ Recovery_trim <- Recovery %>%
 
 
 setwd(datapath)
-  write.csv(Recovery, "RecoveryValues_postBMIS_pH8_Cyano.csv")
+  write.csv(Recovery, "RecoveryValues_postBMIS_pH8_Cyano_NOVB1.csv")
 ```
 
 #Plot internal standards

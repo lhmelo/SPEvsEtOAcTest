@@ -1,0 +1,100 @@
+---
+title: "Cyano Recovery Test Summary"
+author: "Laura Hmelo"
+date: "7/31/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(plyr)
+library(tidyverse)
+```
+
+
+set datapaths
+```{r}
+summarypath <- "~/Desktop/MetabolomicsProjects/SPEvsEtOAcTest/RecoveryTests"
+datapath_pH5 <- "~/Desktop/MetabolomicsProjects/SPEvsEtOAcTest/RecoveryTests/Cyano_pH5"
+datapath_pH2 <- "~/Desktop/MetabolomicsProjects/SPEvsEtOAcTest/RecoveryTests/Cyano_pH2"
+datapath_pH8 <- "~/Desktop/MetabolomicsProjects/SPEvsEtOAcTest/RecoveryTests/Cyano_pH8"
+```
+
+
+Load in Recovery Data
+```{r}
+setwd(datapath_pH5)
+recovery_pH5 <- read.csv("RecoveryValues_postBMIS_pH5_Cyano.csv", row.names = 1)
+
+recovery_pH5 <- recovery_pH5 %>% 
+  select(Compound.Name, percent.recovery) %>% 
+   dplyr::rename(`per.rec.pH5` = percent.recovery)
+
+setwd(datapath_pH8)
+recovery_pH8 <- read.csv("RecoveryValues_postBMIS_pH8_Cyano_NOVB1.csv", row.names = 1)
+
+recovery_pH8 <- recovery_pH8 %>% 
+  select(Compound.Name, percent.recovery) %>% 
+   dplyr::rename(`per.rec.pH8` = percent.recovery)
+
+setwd(datapath_pH2)
+recovery_pH2 <- read.csv("RecoveryValues_postBMIS_pH2_Cyano.csv", row.names = 1)
+
+recovery.summary <- recovery_pH2 %>% 
+  select(Compound.Name, percent.recovery, Group) %>% 
+  dplyr::rename(`per.rec.pH2` = percent.recovery) %>%
+  full_join(recovery_pH5, "Compound.Name") %>% 
+  full_join(recovery_pH8, "Compound.Name") %>% 
+  select(Compound.Name, Group, `per.rec.pH2`, `per.rec.pH5`, `per.rec.pH8`) %>% 
+  filter(!Group == "Internal Std")
+
+recovery.summary[is.na(recovery.summary)] <- 0
+  
+ setwd(summarypath) 
+  
+write_csv(recovery.summary, "RecoveryTestsSummary_Recoveries_Cyano.csv")
+```
+Load in Background Concentration data
+
+```{r}
+setwd(datapath_pH2)
+back.conc.ph2 <- read.csv("BackgroundConcentrations_SPE_pH2_Cyano.csv")
+
+setwd(datapath_pH5)
+back.conc.ph5 <- read.csv("BackgroundConcentrations_SPE_pH5_Cyano.csv")
+
+back.conc.ph5 <- back.conc.ph5 %>% 
+  select(Compound.Name, average.adj.conc, sd.adj.conc, average.raw.conc, sd.raw.conc) %>% 
+  dplyr::rename(pH5_adj.conc = average.adj.conc) %>% 
+  dplyr::rename(pH5_sd = sd.adj.conc) %>% 
+  dplyr::rename(pH5_raw.conc = average.raw.conc) %>% 
+  dplyr::rename(pH5_sd.raw = sd.raw.conc)
+
+setwd(datapath_pH8)
+back.conc.ph8 <- read.csv("BackgroundConcentrations_SPE_pH8_Cyano.csv")
+
+back.conc.ph8 <- back.conc.ph8 %>% 
+  select(Compound.Name, average.adj.conc, sd.adj.conc, average.raw.conc, sd.raw.conc) %>% 
+  dplyr::rename(pH8_adj.conc = average.adj.conc) %>% 
+  dplyr::rename(pH8_sd = sd.adj.conc) %>% 
+  dplyr::rename(pH8_raw.conc = average.raw.conc) %>% 
+  dplyr::rename(pH8_sd.raw = sd.raw.conc)
+
+back.conc.summary <- back.conc.ph2 %>% 
+  select(Compound.Name, average.adj.conc, sd.adj.conc, average.raw.conc, sd.raw.conc) %>% 
+  dplyr::rename(pH2_adj.conc = average.adj.conc) %>% 
+  dplyr::rename(pH2_sd = sd.adj.conc) %>% 
+  dplyr::rename(pH2_raw.conc = average.raw.conc) %>% 
+  dplyr::rename(pH2_sd.raw = sd.raw.conc) %>% 
+  full_join(back.conc.ph5, "Compound.Name") %>% 
+  full_join(back.conc.ph8, "Compound.Name")
+
+back.conc.summary[is.na(back.conc.summary)] <- 0
+
+back.conc.summ.test <- round(back.conc.summary[,2:13], 2)
+ back.conc.summ.test <- format(back.conc.summary, digits=1) 
+
+setwd(summarypath)
+
+write_csv(back.conc.summ.test, "RecoveryTestsSummary_BackgroundConc_Cyano.csv")
+```
+

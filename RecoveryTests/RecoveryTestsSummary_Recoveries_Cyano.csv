@@ -1,0 +1,96 @@
+Compound.Name,Group,per.rec.pH2,per.rec.pH5,per.rec.pH8
+GA4,Phytohormone,465,262,224
+3OC8-HSL,Quorum sensing,151,53,0
+p-Coumoroyl-HSL,Quorum sensing,122,47,0
+C6-HSL,Quorum sensing,121,74,0
+Indole 3 carboxylic acid,Phytohormone,121,75,24
+Vitamin B5,Vitamin,121,30,6
+Vitamin B7,Vitamin,121,129,208
+C8-HSL,Quorum sensing,112,40,0
+3OHC12-HSL,Quorum sensing,108,44,0
+cinnamoyl-HSL,Quorum sensing,108,73,0
+trans cinnamic acid,Lignin,108,60,5
+trans cinnamic acid,Lignin,108,60,5
+trans cinnamic acid,Lignin,108,60,5
+trans cinnamic acid,Lignin,108,60,5
+trans cinnamic acid,Trouble Compounds,108,60,5
+trans cinnamic acid,Trouble Compounds,108,60,5
+trans cinnamic acid,Trouble Compounds,108,60,5
+trans cinnamic acid,Trouble Compounds,108,60,5
+Abscisic Acid,Phytohormone,107,27,94
+3OC10-HSL,Quorum sensing,102,42,0
+4-hydroxybenzaldehyde,Lignin,100,-314,58
+C10-HSL,Quorum sensing,95,51,0
+3OC6-HSL,Quorum sensing,92,67,0
+3OC12-HSL,Quorum sensing,90,51,0
+C4-HSL,Quorum sensing,89,90,0
+Methyl indole 3 carboxylate,Phytohormone,89,76,48
+Vitamin B6,Vitamin,85,45,19
+Acetosyringone,Lignin,83,45,28
+Phenylalanine,Amino Acid,78,65,52
+Vitamin B2,Vitamin,74,76,56
+Acetovanillone,Lignin,73,61,41
+Sulfurol,Vitamin,66,75,62
+C12-HSL,Quorum sensing,64,54,0
+Domoic Acid,Toxin ,61,46,19
+Vanillic Acid,Lignin,60,45,4
+Syringaldehyde,Lignin,59,34,77
+Vitamin B3,Vitamin,57,2,3
+Desthiobiotin,Vitamin,56,69,80
+Caffeic Acid,Lignin,55,94,NA
+Vitamin B9,Vitamin,50,53,20
+Indole 3 acetamide,Phytohormone,49,34,104
+Syringic Acid,Lignin,45,23,0
+HHQ,Quorum sensing,44,52,34
+Dimethyl-benzimidazole,Vitamin synthesis,43,0,40
+Vanillin,Lignin,42,108,101
+3-Indoleacetonitrile,Phytohormone,41,49,33
+Caffeine,Purine,36,46,60
+Kynurenine,Amino Acid,33,42,48
+Tryptophan,Amino Acid,33,26,41
+Cyano B12,Vitamin B12,31,7,34
+IAA,Phytohormone,27,43,108
+Tryptophol,Phytohormone,27,NA,17
+Hydroxo B12,Vitamin B12,26,9,67
+Kinetin,Phytohormone,26,26,121
+Melatonin,Circadian,25,14,19
+Tryptamine,Phytohormone,23,0,0
+GA3,Phytohormone,21,53,160
+Indole 3 methyl acetate,Phytohormone,20,25,13
+3 Indolepropionic Acid,Phytohormone,18,11,35
+Aminobenzoic Acid,Lignin,18,47,0
+Camalexin,Phytohormone,18,12,9
+Adenosyl Homocysteine,Amino Acid synthesis,17,4,61
+Pyridoxal,Vitamin,15,46,15
+Ethyl 3 aminobenzoate,Lignin,12,10,38
+C14-HSL,Quorum sensing,10,29,1
+Vitamin B1,Vitamin,9,1,0
+3 Indolebutyric Acid,Phytohormone,8,16,107
+Pyridoxal Phosphate,Vitamin,8,35,1
+Methyl B12,Vitamin B12,7,11,6
+Indole 3 Lactic Acid,Phytohormone,6,27,81
+2iP,Phytohormone,5,4,213
+Monesin,Antibiotic,5,5,0
+Adenosyl Methionine,Amino Acid synthesis,4,17,2
+Tocopherol (Vit E),Vitamin (fat soluble),2,0,0
+Thiamine monophosphate,Vitamin (B1-derivative),1,54,1
+7-dehydrocholesterol,Sterol,0,NA,0
+Arachidonic Acid,Fatty Acid,0,0,26
+Carotene,Antioxidant pigment,0,0,0
+Coenzyme B12,Vitamin B12,0,0,14
+Coenzyme Q1,Quinone,0,0,0
+Coenzyme Q10,Quinone,0,0,3
+Cys-Gly,New,0,0,8
+DHA,Fatty Acid,0,NA,7
+Dimethyl glycine,Amino Acid derivative,0,1,0
+Ergosterol,Sterol,0,0,0
+Glutathione,Antioxidant,0,0,0
+Methylthioadenosine,New,0,NA,0
+Pyridoxamine,Vitamin,0,13,18
+Retinoic Acid,Vitamin rhodopsin,0,0,50
+thiamine pyrophosphate,Vitamin (B1-derivative),0,15,0
+Tocotrienol,Vitamin (fat soluble),0,0,0
+trans Retinal,Vitamin rhodopsin,0,0,0
+Vitamin D2,Vitamin (fat soluble),0,NA,0
+Vitamin K1,Quinone,0,0,0
+Vitamin K2,Quinone,0,0,0

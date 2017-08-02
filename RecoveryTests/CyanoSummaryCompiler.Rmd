@@ -98,3 +98,94 @@ setwd(summarypath)
 write_csv(back.conc.summ.test, "RecoveryTestsSummary_BackgroundConc_Cyano.csv")
 ```
 
+#Ranked table
+```{r}
+recovery.summary <- recovery.summary %>% 
+  filter(!Compound.Name == "trans cinnamic acid")
+
+unique.names <-unique(recovery.summary$Compound.Name)
+
+recovery.summary.long <- recovery.summary %>% 
+  gather(per.rec.pH2, per.rec.pH5, per.rec.pH8, key="pH", value="percent.recovery") 
+
+Names <- colnames(recovery.summary.long)
+
+
+
+data_ranked = data.frame(matrix(vector(), 0, length(Names) + 1,
+                                        dimnames=list(c(), c(Names, "rank"))),
+                                 stringsAsFactors=F)
+
+for (i in 1:length(unique.names)) {
+  
+  compound_set <- as.data.frame(recovery.summary.long) %>% 
+    filter(Compound.Name == unique.names[i]) %>%
+    arrange(desc(percent.recovery)) %>%
+    mutate(rank = c(3:1))
+  
+   compound_set$rank <- ifelse(compound_set$percent.recovery < 1, 0, compound_set$rank)
+  
+  data_ranked <- rbind(data_ranked, compound_set)
+  
+  #print(i)
+}
+
+recovery.summary.ranks <- data_ranked %>% 
+  select(-percent.recovery, -Group) %>% 
+  spread(key= Compound.Name, value= rank)
+
+recovery.summary.ranks <- recovery.summary.ranks %>% 
+  mutate(rank.total = rowSums(recovery.summary.ranks[,2:ncol(recovery.summary.ranks)])) %>%
+  select(pH, rank.total, everything()) %>%
+  arrange(desc(rank.total))
+
+recovery.ranks.simple <- recovery.summary.ranks %>% select(pH, rank.total)
+write_csv(recovery.ranks.simple, "~/Desktop/MetabolomicsProjects/SPEvsEtOAcTest/RecoveryTests/Cyano_RecoveryRanks_allcompounds.csv")
+
+```
+
+#Ranked Table, at least 10% Recovery
+```{r}
+recovery.summary <- recovery.summary %>% 
+  filter(!Compound.Name == "trans cinnamic acid")
+
+unique.names <-unique(recovery.summary$Compound.Name)
+
+recovery.summary.long <- recovery.summary %>% 
+  gather(per.rec.pH2, per.rec.pH5, per.rec.pH8, key="pH", value="percent.recovery") 
+
+Names <- colnames(recovery.summary.long)
+
+
+
+data_ranked_10min = data.frame(matrix(vector(), 0, length(Names) + 1,
+                                        dimnames=list(c(), c(Names, "rank"))),
+                                 stringsAsFactors=F)
+
+for (i in 1:length(unique.names)) {
+  
+  compound_set <- as.data.frame(recovery.summary.long) %>% 
+    filter(Compound.Name == unique.names[i]) %>%
+    arrange(desc(percent.recovery)) %>%
+    mutate(rank = c(3:1))
+  
+   compound_set$rank <- ifelse(compound_set$percent.recovery < 10, 0, compound_set$rank)
+  
+  data_ranked_10min <- rbind(data_ranked_10min, compound_set)
+  
+  #print(i)
+}
+
+recovery.summary.ranks.10min <- data_ranked_10min %>% 
+  select(-percent.recovery, -Group) %>% 
+  spread(key= Compound.Name, value= rank)
+
+recovery.summary.ranks.10min <- recovery.summary.ranks.10min %>% 
+  mutate(rank.total = rowSums(recovery.summary.ranks.10min[,2:ncol(recovery.summary.ranks.10min)])) %>%
+  select(pH, rank.total, everything()) %>%
+  arrange(desc(rank.total))
+
+recovery.ranks.simple.10min <- recovery.summary.ranks.10min %>% select(pH, rank.total)
+write_csv(recovery.ranks.simple.10min, "~/Desktop/MetabolomicsProjects/SPEvsEtOAcTest/RecoveryTests/Cyano_RecoveryRanks_10percentmin.csv")
+
+```
